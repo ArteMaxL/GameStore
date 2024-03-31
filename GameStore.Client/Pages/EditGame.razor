@@ -2,6 +2,7 @@
 @page "/game/{id:int}"
 @using GameStore.Client.Models
 @inject NavigationManager NavigationManager
+@inject GameClient client
 
 <PageTitle>@title</PageTitle>
 <h1>Game Catalog</h1>
@@ -16,9 +17,9 @@ else
 {
     <div class="row">
         <div class="col-sm-4">
-            <EditForm Model="@_game" OnValidSubmit="HandleSubmit">
-                <DataAnnotationsValidator/>
-                <ValidationSummary/>
+            <EditForm Model="@_game" OnValidSubmit="HandleSubmitAsync">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
                 <div class="mb-3">
                     <label for="name" class="form-label">Name:</label>
                     <InputText id="name" class="form-control" @bind-Value="_game.Name" />
@@ -64,11 +65,11 @@ else
 
     private string title = "New Game";
 
-    protected override void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
         if (Id is not null)
         {
-            Game foundGame = GameClient.GetGame(Id.Value);
+            Game foundGame = await client.GetGameAsync(Id.Value);
 
             _game = new()
                 {
@@ -93,15 +94,15 @@ else
         }
     }
 
-    private void HandleSubmit()
+    private async Task HandleSubmitAsync()
     {
         if (_game!.Id == 0)
         {
-            GameClient.AddGame(_game);            
+            await client.AddGameAsync(_game);
         }
         else
         {
-            GameClient.UpdateGame(_game);
+            await client.UpdateGameAsync(_game);
         }
 
         NavigationManager.NavigateTo("/");
