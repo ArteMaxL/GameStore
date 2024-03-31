@@ -1,34 +1,6 @@
 using GameStore.Server.Data;
 using GameStore.Server.Models;
-using Microsoft.AspNetCore.Http.HttpResults;
-
-List<Game> games = new()
-      {
-        new Game
-        {
-            Id = 1,
-            Name = "Assassin's Creed",
-            Genre = "Action",
-            Price = 19.99M,
-            ReleaseDate = new DateTime(2010,11,11)
-        },
-        new Game
-        {
-            Id = 2,
-            Name = "The Witcher 3",
-            Genre = "RPG",
-            Price = 12,
-            ReleaseDate = new DateTime(2019, 11, 11)
-        },
-        new Game
-        {
-            Id = 3,
-            Name = "Legend of Zelda: Breath Of The Wild",
-            Genre = "RPG",
-            Price = 49.99M,
-            ReleaseDate = new DateTime(2017, 11, 11)
-        },
-    };
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -51,12 +23,23 @@ var group = app.MapGroup("/games")
     .WithParameterValidation();
 
 // GET /games
-group.MapGet("/", () => games);
+group.MapGet("/", async (string? filter, GameStoreContext context) =>
+{
+    var games = context.Games.AsNoTracking();
+
+    if (filter is not null)
+    {
+        games = games.Where(game => game.Name.Contains(filter) 
+                                 || game.Genre.Contains(filter));
+    }
+
+    return await games.ToListAsync();
+});
 
 // GET /games/{id}
-group.MapGet("/{id:int}", (int id) => 
+group.MapGet("/{id:int}", async (int id, GameStoreContext context) => 
 {
-    Game? game = games.Find(g => g.Id == id);
+    Game? game = await context.Games.FindAsync(id);
     
     if (game is null)
     {
@@ -68,48 +51,52 @@ group.MapGet("/{id:int}", (int id) =>
 .WithName("GetGame");
 
 // POST /games
-group.MapPost("/", (Game game) =>
+group.MapPost("/", async (Game game, GameStoreContext context) =>
 {
-    game.Id = games.Max(x => x.Id) + 1;
-    games.Add(game);
+    context.Games.Add(game);
+    await context.SaveChangesAsync();
 
     return Results.CreatedAtRoute("GetGame", new { id = game.Id }, game);
 });
 
 // PUT /games/{id}
-group.MapPut("/{id:int}", (int id, Game updatedGame) =>
+group.MapPut("/{id:int}", async (int id, Game updatedGame, GameStoreContext context) =>
 {
-    Game? existingGame = games.Find(g => g.Id == id);
+    //Game? existingGame = await context.Games.FindAsync(id);
 
-    if (existingGame is null)
-    {
-        updatedGame.Id = id;
-        games.Add(updatedGame);
+    //if (existingGame is null)
+    //{
+    //    return Results.NotFound();
+    //}
 
-        return Results.CreatedAtRoute("GetGame", new { id = updatedGame.Id }, updatedGame);
-    }
+    //existingGame.Name = updatedGame.Name;
+    //existingGame.Genre = updatedGame.Genre;
+    //existingGame.Price = updatedGame.Price;
+    //existingGame.ReleaseDate = updatedGame.ReleaseDate;
 
-    existingGame.Name = updatedGame.Name;
-    existingGame.Genre = updatedGame.Genre;
-    existingGame.Price = updatedGame.Price;
-    existingGame.ReleaseDate = updatedGame.ReleaseDate;
+    //await context.SaveChangesAsync();
 
-    return Results.NoContent();
+    //return Results.NoContent();
+
+    // DELETE /games/{id}
+
+    var rowsAffected = await context.Games.Where(game => game.Id == id)
+                        .ExecuteUpdateAsync(updates =>
+                            updates.SetProperty(game => game.Name, updatedGame.Name)
+                                   .SetProperty(game => game.Genre, updatedGame.Genre)
+                                   .SetProperty(game => game.Price, updatedGame.Price)
+                                   .SetProperty(game => game.ReleaseDate, updatedGame.ReleaseDate));
+
+    return rowsAffected == 0 ? Results.NotFound() : Results.NoContent();
 });
 
-// DELETE /games/{id}
-group.MapDelete("/{id:int}", (int id) =>
+    
+group.MapDelete("/{id:int}", async (int id, GameStoreContext context) =>
 {
-    Game? existingGame = games.Find(g => g.Id == id);
+    var rowsAffected = await context.Games.Where(game => game.Id == id)
+                        .ExecuteDeleteAsync();
 
-    if (existingGame is null) 
-    {
-        return Results.NotFound();
-    }
-
-    games.Remove(existingGame);
-
-    return Results.NoContent();
+    return rowsAffected == 0 ? Results.NotFound() : Results.NoContent();
 });
 
 app.Run();
