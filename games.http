@@ -1,0 +1,32 @@
+@baseUrl = https://localhost:7095
+
+###
+GET {{baseUrl}}/games
+
+###
+GET {{baseUrl}}/games/1
+
+###
+POST {{baseUrl}}/games
+Content-Type: application/json
+
+{
+    "name": "FIFA 24",
+    "genre": "Sports",
+    "price": 39.99,
+    "releaseDate": "2010-11-11T00:00:00"
+}
+
+###
+PUT {{baseUrl}}/games/7
+Content-Type: application/json
+
+{
+    "name": "Assassin's Creed II",
+    "genre": "Action",
+    "price": 29.99,
+    "releaseDate": "2010-11-11T00:00:00"
+}
+
+###
+DELETE {{baseUrl}}/games/2
